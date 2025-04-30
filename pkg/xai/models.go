@@ -9,12 +9,12 @@ import (
 type ModelType string
 
 const (
-	// Grok 2 系列
+	// Grok 2 Series
 	Grok212     ModelType = "grok-2-1212"
 	Grok2Vision ModelType = "grok-2-vision-1212"
 	Grok2Image  ModelType = "grok-2-image-1212"
 
-	// Grok 3 系列
+	// Grok 3 Series
 	Grok3Beta         ModelType = "grok-3-beta"
 	Grok3FastBeta     ModelType = "grok-3-fast-beta"
 	Grok3MiniBeta     ModelType = "grok-3-mini-beta"

@@ -8,6 +8,57 @@ import (
 	"strings"
 )
 
+// StreamResponse wraps a chat completion stream channel
+type StreamResponse struct {
+	Stream <-chan *ChatCompletionResponse
+	Error  error
+}
+
+// CreateChatCompletionStream sends a streaming chat completion request to the xAI API with Message type
+func (c *Client) CreateChatCompletionStream(req *ChatCompletionRequest) (*StreamResponse, error) {
+	// Request already contains Messages as []map[string]interface{}
+	// So we don't need to convert it
+
+	// Create options from the request
+	var options []InvokeOption
+	if req.Temperature != nil {
+		options = append(options, WithTemperature(*req.Temperature))
+	}
+	if req.MaxTokens != nil {
+		options = append(options, WithMaxTokens(*req.MaxTokens))
+	}
+	if req.FrequencyPenalty != nil {
+		options = append(options, WithFrequencyPenalty(*req.FrequencyPenalty))
+	}
+	if req.PresencePenalty != nil {
+		options = append(options, WithPresencePenalty(*req.PresencePenalty))
+	}
+	if req.TopP != nil {
+		options = append(options, WithTopP(*req.TopP))
+	}
+	if req.Seed != nil {
+		options = append(options, WithSeed(*req.Seed))
+	}
+	if req.Stop != nil {
+		options = append(options, WithStop(req.Stop))
+	}
+	if req.StreamOptions != nil {
+		// StreamOptions is not directly supported by InvokeStream
+		// but we keep it for API compatibility
+	}
+
+	// Call InvokeStream with the messages and options
+	stream, err := c.InvokeStream(req.Messages, options...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &StreamResponse{
+		Stream: stream,
+		Error:  nil,
+	}, nil
+}
+
 // InvokeStream sends a streaming chat completion request to the xAI API
 func (c *Client) InvokeStream(
 	messages []map[string]interface{},

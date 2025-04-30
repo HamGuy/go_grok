@@ -1,116 +1,179 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 
-	"github.com/hamguy/xai_grok_sdk_go/pkg/xai"
+	"github.com/hamguy/go_grok/pkg/xai"
 )
 
+// Server configuration
+const (
+	defaultPort = "8080"
+	defaultHost = "localhost"
+)
+
+// Request and response structures
+type ChatRequest struct {
+	Messages []map[string]interface{} `json:"messages"`
+	Model    string                   `json:"model,omitempty"`
+	Stream   bool                     `json:"stream,omitempty"`
+	// Other optional parameters
+	Temperature *float64                 `json:"temperature,omitempty"`
+	MaxTokens   *int                     `json:"max_tokens,omitempty"`
+	Tools       []map[string]interface{} `json:"tools,omitempty"`
+	ToolChoice  interface{}              `json:"tool_choice,omitempty"`
+}
+
 func main() {
-	// Get API key from environment variable
-	apiKey := os.Getenv("XAI_API_KEY")
+	// Get API Key from environment variable
+	apiKey := os.Getenv("GROK_API_KEY")
 	if apiKey == "" {
-		log.Fatal("XAI_API_KEY environment variable is required")
+		log.Fatal("GROK_API_KEY environment variable not set. Please set it and try again.")
 	}
 
-	// Define a tool function for getting weather
-	getWeather := func(args map[string]interface{}) (string, error) {
-		location, ok := args["location"].(string)
-		if !ok {
-			return "", fmt.Errorf("location must be a string")
-		}
-		// In a real implementation, you would call a weather API here
-		return fmt.Sprintf("The weather in %s is sunny and 72°F.", location), nil
+	// Determine server port
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = defaultPort
 	}
 
-	// Define tools
-	tools := []map[string]interface{}{
-		{
-			"name":        "get_weather",
-			"description": "Get the current weather for a location",
-			"parameters": map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"location": map[string]interface{}{
-						"type":        "string",
-						"description": "The city and state, e.g., San Francisco, CA",
-					},
-				},
-				"required": []string{"location"},
-			},
-		},
-	}
-
-	// Create function map
-	functionMap := map[string]func(map[string]interface{}) (string, error){
-		"get_weather": getWeather,
-	}
-
-	// Initialize client
+	// Create global client
 	client := xai.NewClient(
 		apiKey,
-		string(xai.Grok212),
-		xai.WithTools(tools),
-		xai.WithFunctionMap(functionMap),
+		string(xai.Grok3Beta),
 	)
 
-	// Example 1: Basic completion
-	fmt.Println("Example 1: Basic completion")
-	resp, err := client.Invoke(
-		[]map[string]interface{}{
-			{"role": "user", "content": "Hello, how are you today?"},
-		},
-		xai.WithTemperature(0.7),
-		xai.WithMaxTokens(100),
-	)
-	if err != nil {
-		log.Fatalf("Error: %v", err)
-	}
-
-	if len(resp.Choices) > 0 && resp.Choices[0].Message != nil {
-		fmt.Printf("Response: %s\n\n", resp.Choices[0].Message.Content)
-	}
-
-	// Example 2: Function calling
-	fmt.Println("Example 2: Function calling")
-	resp, err = client.Invoke(
-		[]map[string]interface{}{
-			{"role": "user", "content": "What's the weather like in San Francisco?"},
-		},
-		xai.WithToolChoice("auto"),
-	)
-	if err != nil {
-		log.Fatalf("Error: %v", err)
-	}
-
-	if len(resp.Choices) > 0 && resp.Choices[0].Message != nil {
-		message := resp.Choices[0].Message
-		fmt.Printf("Assistant: %s\n", message.Content)
-
-		if len(message.ToolResults) > 0 {
-			fmt.Printf("Tool Result: %s\n\n", message.ToolResults[0].Content)
+	// Define handler function
+	http.HandleFunc("/chat/completions", func(w http.ResponseWriter, r *http.Request) {
+		// Only accept POST requests
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
 		}
-	}
 
-	// Example 3: Streaming
-	fmt.Println("Example 3: Streaming")
-	streamChan, err := client.InvokeStream(
-		[]map[string]interface{}{
-			{"role": "user", "content": "Write a short poem about artificial intelligence."},
-		},
-		xai.WithTemperature(0.8),
-	)
+		// Read request body
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Error reading request body", http.StatusBadRequest)
+			return
+		}
+		defer r.Body.Close()
+
+		// Parse request
+		var chatReq ChatRequest
+		if err := json.Unmarshal(body, &chatReq); err != nil {
+			http.Error(w, "Invalid request format", http.StatusBadRequest)
+			return
+		}
+
+		// Prepare options
+		var options []xai.InvokeOption
+		if chatReq.Temperature != nil {
+			options = append(options, xai.WithTemperature(*chatReq.Temperature))
+		}
+		if chatReq.MaxTokens != nil {
+			options = append(options, xai.WithMaxTokens(*chatReq.MaxTokens))
+		}
+
+		// Set up the client with tools if provided
+		if len(chatReq.Tools) > 0 {
+			// Since WithTools is a ClientOption, we need to recreate the client
+			client = xai.NewClient(
+				apiKey,
+				string(xai.Grok3Beta),
+				xai.WithTools(chatReq.Tools),
+			)
+		}
+
+		// Add tool choice option if provided
+		if chatReq.ToolChoice != nil {
+			options = append(options, xai.WithToolChoice(chatReq.ToolChoice))
+		}
+
+		// Handle streaming response
+		if chatReq.Stream {
+			handleStreamingResponse(w, client, chatReq.Messages, options)
+			return
+		}
+
+		// Handle standard response
+		handleStandardResponse(w, client, chatReq.Messages, options)
+	})
+
+	// Add health check endpoint
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
+	// Start server
+	serverAddr := fmt.Sprintf("%s:%s", defaultHost, port)
+	log.Printf("🚀 Server started at http://%s", serverAddr)
+	log.Printf("💡 Example request: curl -X POST http://%s/chat/completions -H 'Content-Type: application/json' -d '{\"messages\":[{\"role\":\"user\",\"content\":\"Hello!\"}]}'", serverAddr)
+
+	if err := http.ListenAndServe(serverAddr, nil); err != nil {
+		log.Fatalf("Server startup failed: %v", err)
+	}
+}
+
+// Handle standard response
+func handleStandardResponse(w http.ResponseWriter, client *xai.Client, messages []map[string]interface{}, options []xai.InvokeOption) {
+	// Call API
+	resp, err := client.Invoke(messages, options...)
 	if err != nil {
-		log.Fatalf("Error: %v", err)
+		http.Error(w, fmt.Sprintf("Error calling Grok API: %v", err), http.StatusInternalServerError)
+		return
 	}
 
-	fmt.Print("Streaming response: ")
+	// Return response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
+}
+
+// Handle streaming response
+func handleStreamingResponse(w http.ResponseWriter, client *xai.Client, messages []map[string]interface{}, options []xai.InvokeOption) {
+	// Set response headers
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.WriteHeader(http.StatusOK)
+
+	// Flush writer
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming not supported", http.StatusInternalServerError)
+		return
+	}
+
+	// Get streaming response
+	streamChan, err := client.InvokeStream(messages, options...)
+	if err != nil {
+		// Send error in streaming response
+		fmt.Fprintf(w, "data: {\"error\": \"%v\"}\n\n", err)
+		flusher.Flush()
+		return
+	}
+
+	// Process streaming response
 	for chunk := range streamChan {
-		if len(chunk.Choices) > 0 && chunk.Choices[0].Delta != nil {
-			fmt.Print(chunk.Choices[0].Delta.Content)
+		// Convert response chunk to JSON
+		chunkBytes, err := json.Marshal(chunk)
+		if err != nil {
+			continue
 		}
+
+		// Send response chunk
+		fmt.Fprintf(w, "data: %s\n\n", chunkBytes)
+		flusher.Flush()
 	}
-	fmt.Println("\n")
+
+	// Send end marker
+	fmt.Fprintf(w, "data: [DONE]\n\n")
+	flusher.Flush()
 }
