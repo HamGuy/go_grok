@@ -299,4 +299,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🙏 Acknowledgements
 
 - [xAI](https://x.ai) for creating the Grok AI models
-- [DeepWiki](https://deepwiki.zhubai.love/) for comprehensive documentation and resources
+- [DeepWiki](https://deepwiki.com/HamGuy/go_grok) for comprehensive documentation and resources
