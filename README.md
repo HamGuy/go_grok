@@ -53,28 +53,28 @@ export GROK_API_KEY="your-grok-api-key"
 
 ### Using .env Files
 
-You can also use a `.env` file with [godotenv](https://github.com/joho/godotenv):
+You can also use a `.env` file which will be automatically loaded by the SDK:
 
-```bash
-# Install godotenv
-go get github.com/joho/godotenv
-```
-
-Create a `.env` file in your project:
+Create a `.env` file in your project root:
 ```
 # .env file example
 GROK_API_KEY=your_api_key_here
 ```
 
-Then load it in your code:
+The SDK includes built-in utilities to load this file:
 ```go
-import "github.com/joho/godotenv"
+import "github.com/hamguy/go_grok/pkg/utils"
 
-func init() {
-    // Load .env file (if it exists)
-    if err := godotenv.Load(); err != nil {
-        log.Println("No .env file found")
+func main() {
+    // This will check environment variables and .env files
+    apiKey := utils.GetAPIKey()
+    if apiKey == "" {
+        log.Fatal("API key not found")
     }
+    
+    // Now use the API key with the client
+    client := xai.NewClient(apiKey, string(xai.Grok3Beta))
+    // ...
 }
 ```
 
@@ -253,7 +253,10 @@ go_grok/
 │   ├── streaming/main.go   # Simple streaming example  
 │   └── tool_calling/main.go # Tool calling example  
 ├── pkg/                    # Core SDK code  
+│   ├── utils/              # Utility functions
+│   │   └── env.go          # Environment and configuration utilities
 │   └── xai/                # Main package implementing the SDK
+├── main.go                 # Root example file
 ├── go.mod                  # Go module definition
 └── README.md               # Project documentation
 ```
