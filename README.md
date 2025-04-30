@@ -4,7 +4,10 @@
   <img src="https://img.shields.io/badge/Go-1.21+-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go Version">
   <img src="https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge" alt="License">
   <img src="https://img.shields.io/badge/xAI-Grok-6236FF?style=for-the-badge&logo=x&logoColor=white" alt="xAI Grok">
+
 </p>
+
+[![DeepWiki](https://img.shields.io/badge/DeepWiki-AI_Knowledge-0078D4?style=for-the-badge&logo=data:image/png;base64,<base64-encoded-logo>&logoColor=white)](https://deepwiki.com/HamGuy/go_grok/)
 
 ## 📝 Overview
 
@@ -296,3 +299,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🙏 Acknowledgements
 
 - [xAI](https://x.ai) for creating the Grok AI models
+- [DeepWiki](https://deepwiki.zhubai.love/) for comprehensive documentation and resources
