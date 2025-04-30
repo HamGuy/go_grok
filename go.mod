@@ -1,7 +1,3 @@
-module github.com/hamguy/xai_grok_sdk_go
+module github.com/hamguy/go_grok
 
 go 1.21
-
-require (
-// No external dependencies required for the core SDK
-)
