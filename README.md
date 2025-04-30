@@ -30,11 +30,52 @@ go-grok is a lightweight, feature-complete Go SDK for interacting with xAI's Gro
 - ✅ **Tool Calling** - Define custom tools that Grok can use
 - ✅ **Function Execution** - Automatically execute functions when Grok calls them
 - ✅ **Customizable Parameters** - Full control over temperature, max tokens, etc.
+- ✅ **Server Integration** - Run as an API server with built-in streaming support
 
 ## 📦 Installation
 
 ```bash
 go get github.com/hamguy/go_grok
+```
+
+## 🔑 API Key Configuration
+
+This SDK requires an xAI Grok API key to function. You can provide it in several ways:
+
+### Environment Variables
+
+The recommended way is to use the `GROK_API_KEY` environment variable:
+
+```bash
+# Set API Key environment variable
+export GROK_API_KEY="your-grok-api-key"
+```
+
+### Using .env Files
+
+You can also use a `.env` file with [godotenv](https://github.com/joho/godotenv):
+
+```bash
+# Install godotenv
+go get github.com/joho/godotenv
+```
+
+Create a `.env` file in your project:
+```
+# .env file example
+GROK_API_KEY=your_api_key_here
+```
+
+Then load it in your code:
+```go
+import "github.com/joho/godotenv"
+
+func init() {
+    // Load .env file (if it exists)
+    if err := godotenv.Load(); err != nil {
+        log.Println("No .env file found")
+    }
+}
 ```
 
 ## 🚀 Quick Start
@@ -44,13 +85,21 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"github.com/hamguy/go_grok/pkg/xai"
 )
 
 func main() {
+	// Get API key from environment variable
+	apiKey := os.Getenv("GROK_API_KEY")
+	if apiKey == "" {
+		log.Fatal("GROK_API_KEY environment variable not set")
+	}
+
 	// Initialize client with your API key
 	client := xai.NewClient(
-		"YOUR_XAI_API_KEY",
+		apiKey,
 		string(xai.Grok3Beta),
 	)
 
@@ -125,7 +174,7 @@ functionMap := map[string]func(map[string]interface{}) (string, error){
 
 // Create a client with tools
 client := xai.NewClient(
-	"YOUR_XAI_API_KEY",
+	apiKey,
 	string(xai.Grok3Beta),
 	xai.WithTools(tools),
 	xai.WithFunctionMap(functionMap),
@@ -151,9 +200,85 @@ resp, err := client.Invoke(
 )
 ```
 
-## 📚 API Reference
+### 🖥️ Server Integration
 
-For detailed API reference, check our [API Documentation](https://github.com/hamguy/go_grok/wiki).
+You can run this SDK as an API server that proxies requests to the xAI API:
+
+```go
+package main
+
+import (
+	"log"
+	"os"
+	"github.com/hamguy/go_grok/pkg/xai"
+	"net/http"
+	// Other imports...
+)
+
+func main() {
+	// Get API key from environment variable
+	apiKey := os.Getenv("GROK_API_KEY")
+	if apiKey == "" {
+		log.Fatal("GROK_API_KEY environment variable not set")
+	}
+	
+	// Create global client
+	client := xai.NewClient(apiKey, string(xai.Grok3Beta))
+	
+	// Set up HTTP handlers
+	http.HandleFunc("/chat/completions", func(w http.ResponseWriter, r *http.Request) {
+		// Handle chat completions endpoint
+		// See cmd/server/main.go for complete implementation
+	})
+	
+	// Start server
+	log.Println("Server started at http://localhost:8080")
+	http.ListenAndServe("localhost:8080", nil)
+}
+```
+
+For a complete server example, see [cmd/server/main.go](cmd/server/main.go).
+
+## 📁 Project Structure
+
+```
+go_grok/  
+├── cmd/                    # Command-line tools  
+│   └── server/             # API server example
+├── demo/                   # More complex demonstrations  
+│   └── streaming/          # Streaming examples  
+│       └── main.go         # Advanced streaming output example
+├── examples/               # Simple usage examples  
+│   ├── basic/main.go       # Basic usage example  
+│   ├── streaming/main.go   # Simple streaming example  
+│   └── tool_calling/main.go # Tool calling example  
+├── pkg/                    # Core SDK code  
+│   └── xai/                # Main package implementing the SDK
+├── go.mod                  # Go module definition
+└── README.md               # Project documentation
+```
+
+## 📚 Examples and Demos
+
+### 📋 Simple Examples
+
+The [`examples/`](examples/) directory contains simple, focused examples:
+
+- **Basic Usage**: Simple chat completion requests
+- **Streaming**: Real-time streaming of responses
+- **Tool Calling**: Using function calling capabilities
+
+### 🎮 Advanced Demos
+
+The [`demo/`](demo/) directory contains more complex demonstrations:
+
+- **Advanced Streaming**: Real-time output with loading animations and cursor control
+
+### 🖥️ Command-Line Tools
+
+The [`cmd/`](cmd/) directory contains command-line applications:
+
+- **API Server**: HTTP server acting as a proxy to the xAI API
 
 ## 🧪 Testing
 
