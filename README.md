@@ -7,7 +7,7 @@
 
 </p>
 
-[![DeepWiki](https://img.shields.io/badge/DeepWiki-AI_Knowledge-0078D4?style=for-the-badge&logo=data:image/png;base64,<base64-encoded-logo>&logoColor=white)](https://deepwiki.com/HamGuy/go_grok/)
+[![DeepWiki](https://img.shields.io/badge/DeepWiki-GO_GROK-0078D4?style=for-the-badge&logo=data:image/png;base64,<base64-encoded-logo>&logoColor=white)](https://deepwiki.com/HamGuy/go_grok/)
 
 ## 📝 Overview
 
